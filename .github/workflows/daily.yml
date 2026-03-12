@@ -1,0 +1,30 @@
+name: 오버워치 티어 데이터 수집
+
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v3
+      
+      - name: Python 설치
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 패키지 설치
+        run: |
+          pip install playwright gspread google-auth
+          playwright install chromium
+      
+      - name: 스크립트 실행
+        env:
+          GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: python scraper.py
