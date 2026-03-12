@@ -27,30 +27,58 @@ def get_credentials():
 def scrape_tier_data(page, tier, role):
     url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=1&tier={tier}"
     page.goto(url)
-    page.wait_for_timeout(3000)
     
-    rows = page.query_selector_all("tr")
+    # 데이터 로딩 대기
+    page.wait_for_timeout(5000)
+    
     data = []
     
-    for row in rows:
-        try:
-            cells = row.query_selector_all("td")
-            if len(cells) < 3:
+    try:
+        # 페이지 전체 텍스트 추출 후 파싱
+        content = page.content()
+        
+        # 테이블 행 찾기
+        rows = page.query_selector_all("table tbody tr")
+        
+        if not rows:
+            # 다른 셀렉터 시도
+            rows = page.query_selector_all(".stats-table tr")
+        
+        if not rows:
+            # 카드 형태 시도
+            rows = page.query_selector_all("[class*='hero-row'], [class*='HeroRow'], [class*='stats-row']")
+        
+        print(f"  → 찾은 행 수: {len(rows)}")
+        
+        for row in rows:
+            try:
+                cells = row.query_selector_all("td")
+                if len(cells) < 2:
+                    continue
+                
+                texts = [cell.inner_text().strip() for cell in cells]
+                print(f"  → 셀 내용: {texts}")
+                
+                name = texts[0]
+                
+                # % 기호 포함된 셀 찾기
+                rates = [t.replace("%", "").strip() for t in texts if "%" in t and t != "--"]
+                
+                if len(rates) < 2:
+                    continue
+                
+                pickrate = float(rates[0])
+                winrate = float(rates[1])
+                
+                if name and pickrate and winrate:
+                    data.append({"영웅": name, "승률": winrate, "픽률": pickrate})
+                    
+            except Exception as e:
+                print(f"  → 행 파싱 오류: {e}")
                 continue
-            
-            name = cells[0].inner_text().strip()
-            pickrate = cells[1].inner_text().strip()
-            winrate = cells[2].inner_text().strip()
-            
-            if winrate == "--" or pickrate == "--":
-                continue
-            
-            winrate = float(winrate.replace("%", ""))
-            pickrate = float(pickrate.replace("%", ""))
-            
-            data.append({"영웅": name, "승률": winrate, "픽률": pickrate})
-        except:
-            continue
+                
+    except Exception as e:
+        print(f"  → 수집 오류: {e}")
     
     return data
 
@@ -98,11 +126,13 @@ def update_sheets(gc, all_data, today):
             
             heroes = all_data.get(f"{group_name}_{role}", [])
             if not heroes:
+                print(f"  → {sheet_name} 데이터 없음, 건너뜀")
                 continue
             
             for h in heroes:
                 worksheet.append_row([today, h["영웅"], h["승률"], h["픽률"], h["점수"], h["티어"]])
             
+            print(f"  → {sheet_name} {len(heroes)}개 저장 완료")
             time.sleep(1)
 
 def main():
@@ -111,7 +141,7 @@ def main():
     all_data = {}
     
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         
         for group_name, tiers in TIER_GROUPS.items():
@@ -121,6 +151,7 @@ def main():
                 for tier in tiers:
                     print(f"수집 중: {group_name} - {ROLE_KR[role]} - {tier}")
                     data = scrape_tier_data(page, tier, role)
+                    print(f"  → 수집된 영웅 수: {len(data)}")
                     combined.extend(data)
                     time.sleep(2)
                 
