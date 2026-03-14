@@ -15,19 +15,15 @@ ROLES = ["Tank", "Damage", "Support"]
 ROLE_KR = {"Tank": "탱커", "Damage": "딜러", "Support": "서포터"}
 
 def scrape_tier_data(page, tier, role):
-    # 기본 URL로 접속
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=1"
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=1&tier={tier}"
     page.goto(url)
-    page.wait_for_timeout(4000)
+    page.wait_for_timeout(5000)
 
     try:
-        # 티어 드롭다운 클릭
-        tier_selector = f"[data-tier='{tier}'], [value='{tier}'], option[value='{tier}']"
-        
-        # select 태그 방식 시도
-        page.select_option("select[name='tier'], select#tier, select", tier)
-        page.wait_for_timeout(2000)
-        
+        # 티어 셀렉터 정확하게 지정
+        page.select_option("select[data-label='tier'], #filter-tier-select", tier)
+        page.wait_for_timeout(3000)
+        print(f"  → 티어 선택 성공: {tier}")
     except Exception as e:
         print(f"  → 티어 선택 오류: {e}")
 
@@ -66,7 +62,6 @@ def scrape_tier_data(page, tier, role):
         print(f"  → 오류: {e}")
 
     return data
-
 def calculate_scores(heroes):
     if not heroes:
         return []
