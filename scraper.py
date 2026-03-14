@@ -35,9 +35,8 @@ def scrape_tier_data(page, tier, role):
                 if "%" in next1 and "%" in next2:
                     try:
                         name = lines[i]
-                        pickrate = float(next1.replace("%", "").strip())
-                        winrate = float(next2.replace("%", "").strip())
-
+                        winrate = float(next1.replace("%", "").strip())
+                        pickrate = float(next2.replace("%", "").strip())
                         if name and 0 < pickrate < 100 and 0 < winrate < 100:
                             data.append({
                                 "영웅": name,
