@@ -113,18 +113,19 @@ def update_sheets(gc, all_data, today):
             except:
                 worksheet = sh.add_worksheet(title=sheet_name, rows=200, cols=10)
                 worksheet.append_row(["날짜", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
+                time.sleep(2)
 
             heroes = all_data.get(f"{group_name}_{role}", [])
             if not heroes:
                 print(f"  → {sheet_name} 데이터 없음")
                 continue
 
-            for h in heroes:
-                worksheet.append_row([today, h["영웅"], h["승률"], h["픽률"], h["점수"], h["티어"]])
-
+            # 한번에 묶어서 저장 (속도 초과 방지)
+            rows = [[today, h["영웅"], h["승률"], h["픽률"], h["점수"], h["티어"]] for h in heroes]
+            worksheet.append_rows(rows)
             print(f"  → {sheet_name} {len(heroes)}개 저장 완료")
-            time.sleep(1)
-
+            time.sleep(3)  # 시트마다 3초 대기
+            
 def main():
     today = datetime.now().strftime("%Y-%m-%d")
     gc = get_credentials()
