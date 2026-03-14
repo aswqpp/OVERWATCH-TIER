@@ -1,13 +1,9 @@
 import os
 import time
-import json
-import gspread
+import csv
+import subprocess
 from datetime import datetime
 from playwright.sync_api import sync_playwright
-from google.oauth2.service_account import Credentials
-
-SHEET_ID = os.environ.get("GOOGLE_SHEETS_ID")
-CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
 
 TIER_GROUPS = {
     "저티어": ["Bronze", "Silver", "Gold"],
@@ -18,12 +14,6 @@ TIER_GROUPS = {
 ROLES = ["Tank", "Damage", "Support"]
 ROLE_KR = {"Tank": "탱커", "Damage": "딜러", "Support": "서포터"}
 
-def get_credentials():
-    creds_dict = json.loads(CREDENTIALS_JSON)
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    return gspread.authorize(creds)
-
 def scrape_tier_data(page, tier, role):
     url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=1&tier={tier}"
     page.goto(url)
@@ -32,25 +22,19 @@ def scrape_tier_data(page, tier, role):
     data = []
 
     try:
-        # 페이지 전체 텍스트 가져오기
         body_text = page.inner_text("body")
         lines = body_text.split("\n")
         lines = [l.strip() for l in lines if l.strip()]
 
-        print(f"  → 전체 줄 수: {len(lines)}")
-
         i = 0
         while i < len(lines):
-            line = lines[i]
-
-            # % 가 있는 줄 두 개가 연속으로 나오면 영웅 데이터
             if i + 2 < len(lines):
                 next1 = lines[i + 1]
                 next2 = lines[i + 2]
 
                 if "%" in next1 and "%" in next2:
                     try:
-                        name = line
+                        name = lines[i]
                         pickrate = float(next1.replace("%", "").strip())
                         winrate = float(next2.replace("%", "").strip())
 
@@ -60,7 +44,6 @@ def scrape_tier_data(page, tier, role):
                                 "승률": winrate,
                                 "픽률": pickrate
                             })
-                            print(f"  → 수집: {name} 픽률:{pickrate} 승률:{winrate}")
                             i += 3
                             continue
                     except:
@@ -101,34 +84,41 @@ def calculate_scores(heroes):
 
     return heroes
 
-def update_sheets(gc, all_data, today):
-    sh = gc.open_by_key(SHEET_ID)
+def save_csv(all_data, today):
+    os.makedirs("data", exist_ok=True)
+    filepath = f"data/{today}.csv"
 
-    for group_name in TIER_GROUPS:
-        for role in ROLES:
-            sheet_name = f"{group_name}_{ROLE_KR[role]}"
+    with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["날짜", "그룹", "역할", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
 
-            try:
-                worksheet = sh.worksheet(sheet_name)
-            except:
-                worksheet = sh.add_worksheet(title=sheet_name, rows=200, cols=10)
-                worksheet.append_row(["날짜", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
-                time.sleep(2)
+        for key, heroes in all_data.items():
+            group_name, role = key.rsplit("_", 1)
+            for h in heroes:
+                writer.writerow([
+                    today,
+                    group_name,
+                    role,
+                    h["영웅"],
+                    h["승률"],
+                    h["픽률"],
+                    h["점수"],
+                    h["티어"]
+                ])
 
-            heroes = all_data.get(f"{group_name}_{role}", [])
-            if not heroes:
-                print(f"  → {sheet_name} 데이터 없음")
-                continue
+    print(f"  → CSV 저장 완료: {filepath}")
+    return filepath
 
-            # 한번에 묶어서 저장 (속도 초과 방지)
-            rows = [[today, h["영웅"], h["승률"], h["픽률"], h["점수"], h["티어"]] for h in heroes]
-            worksheet.append_rows(rows)
-            print(f"  → {sheet_name} {len(heroes)}개 저장 완료")
-            time.sleep(3)  # 시트마다 3초 대기
-            
+def git_push(today):
+    subprocess.run(["git", "config", "user.email", "action@github.com"])
+    subprocess.run(["git", "config", "user.name", "GitHub Action"])
+    subprocess.run(["git", "add", "data/"])
+    subprocess.run(["git", "commit", "-m", f"데이터 업데이트: {today}"])
+    subprocess.run(["git", "push"])
+    print("  → GitHub 업로드 완료!")
+
 def main():
     today = datetime.now().strftime("%Y-%m-%d")
-    gc = get_credentials()
     all_data = {}
 
     with sync_playwright() as p:
@@ -163,11 +153,12 @@ def main():
                     })
 
                 scored = calculate_scores(averaged)
-                all_data[f"{group_name}_{role}"] = scored
+                all_data[f"{group_name}_{ROLE_KR[role]}"] = scored
 
         browser.close()
 
-    update_sheets(gc, all_data, today)
+    save_csv(all_data, today)
+    git_push(today)
     print("완료!")
 
 if __name__ == "__main__":
