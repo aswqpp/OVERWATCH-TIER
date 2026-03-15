@@ -15,7 +15,7 @@ ROLES = ["Tank", "Damage", "Support"]
 ROLE_KR = {"Tank": "탱커", "Damage": "딜러", "Support": "서포터"}
 
 def scrape_tier_data(page, tier, role):
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=1&tier={tier}"
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
     page.goto(url)
     page.wait_for_timeout(5000)
 
