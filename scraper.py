@@ -78,71 +78,70 @@ def scrape_data(page, tier):
     page.goto(url)
     page.wait_for_timeout(5000)
 
-    # 스크롤해서 모든 영웅 로드
-    prev_count = 0
-    for _ in range(20):
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        page.wait_for_timeout(1000)
-        current_text = page.inner_text("body")
-        current_count = current_text.count("%")
-        if current_count == prev_count:
-            break
-        prev_count = current_count
+    all_heroes = {}
 
-    data = []
+    # 스크롤하면서 매번 수집
+    scroll_position = 0
+    scroll_step = 300
+    max_scrolls = 30
+    no_new_count = 0
 
-    try:
-        body_text = page.inner_text("body")
-        lines = body_text.split("\n")
-        lines = [l.strip() for l in lines if l.strip()]
+    for _ in range(max_scrolls):
+        try:
+            body_text = page.inner_text("body")
+            lines = body_text.split("\n")
+            lines = [l.strip() for l in lines if l.strip()]
 
-        print(f"  → 전체 라인 수: {len(lines)}")
+            i = 0
+            while i < len(lines):
+                if i + 2 < len(lines):
+                    next1 = lines[i + 1]
+                    next2 = lines[i + 2]
 
-        i = 0
-        while i < len(lines):
-            if i + 2 < len(lines):
-                next1 = lines[i + 1]
-                next2 = lines[i + 2]
+                    if "%" in next1 and "%" in next2:
+                        try:
+                            name = lines[i]
+                            winrate = float(next1.replace("%", "").strip())
+                            pickrate = float(next2.replace("%", "").strip())
 
-                if "%" in next1 and "%" in next2:
-                    try:
-                        name = lines[i]
-                        winrate = float(next1.replace("%", "").strip())
-                        pickrate = float(next2.replace("%", "").strip())
+                            if name and 0 < pickrate < 100 and 0 < winrate < 100 and name not in all_heroes:
+                                if name in HERO_ROLES:
+                                    main_role, subrole = HERO_ROLES[name]
+                                else:
+                                    main_role, subrole = "미분류", "미분류"
+                                    print(f"  → 미분류 영웅 발견: {name}")
 
-                        if name and 0 < pickrate < 100 and 0 < winrate < 100:
-                            if name in HERO_ROLES:
-                                main_role, subrole = HERO_ROLES[name]
-                            else:
-                                main_role, subrole = "미분류", "미분류"
-                                print(f"  → 미분류 영웅 발견: {name}")
+                                all_heroes[name] = {
+                                    "영웅": name,
+                                    "승률": winrate,
+                                    "픽률": pickrate,
+                                    "메인역할": main_role,
+                                    "서브롤": subrole
+                                }
+                                i += 3
+                                continue
+                        except:
+                            pass
+                i += 1
 
-                            data.append({
-                                "영웅": name,
-                                "승률": winrate,
-                                "픽률": pickrate,
-                                "메인역할": main_role,
-                                "서브롤": subrole
-                            })
-                            i += 3
-                            continue
-                    except:
-                        pass
-            i += 1
+        except Exception as e:
+            print(f"  → 오류: {e}")
 
-    except Exception as e:
-        print(f"  → 오류: {e}")
+        prev_count = len(all_heroes)
+        scroll_position += scroll_step
+        page.evaluate(f"window.scrollTo(0, {scroll_position})")
+        page.wait_for_timeout(800)
 
-    # 중복 제거
-    seen = {}
-    for h in data:
-        if h["영웅"] not in seen:
-            seen[h["영웅"]] = h
-    data = list(seen.values())
+        if len(all_heroes) == prev_count:
+            no_new_count += 1
+            if no_new_count >= 5:
+                break
+        else:
+            no_new_count = 0
 
+    data = list(all_heroes.values())
     print(f"  → 총 수집된 영웅 수: {len(data)}명")
 
-    # 진단
     all_defined = set(HERO_ROLES.keys())
     collected = set(h["영웅"] for h in data)
     missing = all_defined - collected
