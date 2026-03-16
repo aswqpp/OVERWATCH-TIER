@@ -79,11 +79,12 @@ def scrape_data(page, tier):
     page.wait_for_timeout(6000)
     
     data = []
-    print("=== 원본 라인 출력 ===")
-    for idx, line in enumerate(lines):
-        if "%" in line or line in HERO_ROLES:
-            print(f"  [{idx}] {line}")
-    print("=== 출력 끝 ===")
+
+print("=== 원본 라인 출력 ===")
+for idx, line in enumerate(lines):
+    if "%" in line or line in HERO_ROLES:
+        print(f"  [{idx}] {line}")
+print("=== 출력 끝 ===")
     try:
         body_text = page.inner_text("body")
         lines = body_text.split("\n")
