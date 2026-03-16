@@ -96,6 +96,35 @@ def scrape_data(page, tier, role):
     print(f"  → 중복 제거 후: {len(data)}명")
 
     return data
+
+def calculate_scores(heroes):
+    if not heroes:
+        return []
+
+    avg_pickrate = sum(h["픽률"] for h in heroes) / len(heroes)
+
+    for hero in heroes:
+        winrate_score = (hero["승률"] - 50) * 0.4
+        pickrate_score = (hero["픽률"] / avg_pickrate) * 0.6
+        hero["점수"] = round(winrate_score + pickrate_score, 3)
+
+    heroes.sort(key=lambda x: x["점수"], reverse=True)
+
+    total = len(heroes)
+    for i, hero in enumerate(heroes):
+        rank_pct = (i / total) * 100
+        if rank_pct < 10:
+            hero["티어"] = "S"
+        elif rank_pct < 30:
+            hero["티어"] = "A"
+        elif rank_pct < 60:
+            hero["티어"] = "B"
+        elif rank_pct < 80:
+            hero["티어"] = "C"
+        else:
+            hero["티어"] = "D"
+
+    return heroes
     
 def save_csv(all_data, timestamp):
     os.makedirs("data", exist_ok=True)
