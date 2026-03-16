@@ -11,25 +11,34 @@ TIER_GROUPS = {
     "고티어": ["Master", "GrandmasterAndChampion"]
 }
 
-# 서브롤 매핑
-SUBROLES = {
-    "개시자": ["D.Va", "둠피스트", "레킹볼", "윈스턴", "해저드"],
-    "투사": ["로드호그", "마우가", "오리사", "자리야"],
-    "강건한 자": ["도미나", "라마트라", "라인하르트", "시그마", "정커퀸"],
-    "측면 공격가": ["겐지", "리퍼", "안란", "트레이서", "벤데타", "벤처"],
-    "수색가": ["솜브라", "에코", "파라", "프레야"],
-    "전문가": ["메이", "바스티온", "솔저: 76", "시메트라", "엠레", "정크랫", "토르비욘"],
-    "명사수": ["소전", "애쉬", "위도우메이커", "캐서디", "한조"],
-    "전술가": ["루시우", "바티스트", "아나", "제트팩 캣", "젠야타"],
-    "의무관": ["라이프위버", "메르시", "모이라", "키리코"],
-    "생존왕": ["미즈키", "브리기테", "우양", "일리아리", "주노"]
+HERO_SUBROLES = {
+    # 개시자
+    "D.Va": "개시자", "레킹볼": "개시자", "윈스턴": "개시자", "둠피스트": "개시자",
+    # 투사
+    "마우가": "투사", "오리사": "투사", "로드호그": "투사", "자리야": "투사",
+    # 강건한 자
+    "라마트라": "강건한 자", "라인하르트": "강건한 자", "도미나": "강건한 자",
+    "해저드": "강건한 자", "정커퀸": "강건한 자", "시그마": "강건한 자",
+    # 전문가
+    "바스티온": "전문가", "엠레": "전문가", "정크랫": "전문가",
+    "메이": "전문가", "솔저: 76": "전문가",
+    # 수색가
+    "에코": "수색가", "프레야": "수색가", "파라": "수색가", "솜브라": "수색가",
+    # 측면 공격가
+    "겐지": "측면 공격가", "안란": "측면 공격가", "리퍼": "측면 공격가",
+    "트레이서": "측면 공격가", "벤데타": "측면 공격가", "벤처": "측면 공격가",
+    # 명사수
+    "애쉬": "명사수", "캐서디": "명사수", "한조": "명사수",
+    "소전": "명사수", "위도우메이커": "명사수",
+    # 전술가
+    "아나": "전술가", "바티스트": "전술가", "제트팩 캣": "전술가",
+    "루시우": "전술가", "젠야타": "전술가",
+    # 의무관
+    "키리코": "의무관", "라이프위버": "의무관", "메르시": "의무관", "모이라": "의무관",
+    # 생존왕
+    "브리기테": "생존왕", "일리아리": "생존왕", "주노": "생존왕",
+    "미즈키": "생존왕", "우양": "생존왕",
 }
-
-# 영웅 → 서브롤 역방향 매핑
-HERO_TO_SUBROLE = {}
-for subrole, heroes in SUBROLES.items():
-    for hero in heroes:
-        HERO_TO_SUBROLE[hero] = subrole
 
 def scrape_data(page, tier):
     url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
@@ -56,10 +65,12 @@ def scrape_data(page, tier):
                         pickrate = float(next2.replace("%", "").strip())
 
                         if name and 0 < pickrate < 100 and 0 < winrate < 100:
+                            subrole = HERO_SUBROLES.get(name, "미분류")
                             data.append({
                                 "영웅": name,
                                 "승률": winrate,
-                                "픽률": pickrate
+                                "픽률": pickrate,
+                                "서브롤": subrole
                             })
                             i += 3
                             continue
@@ -70,7 +81,6 @@ def scrape_data(page, tier):
     except Exception as e:
         print(f"  → 오류: {e}")
 
-    print(f"  → 수집된 영웅 수: {len(data)}")
     return data
 
 def calculate_scores(heroes):
@@ -102,21 +112,20 @@ def calculate_scores(heroes):
 
     return heroes
 
-def save_csv(all_data, today):
+def save_csv(all_data, timestamp):
     os.makedirs("data", exist_ok=True)
-    filepath = f"data/{today}.csv"
+    filepath = f"data/{timestamp}.csv"
 
     with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
         writer.writerow(["날짜", "랭크그룹", "서브롤", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
 
         for key, heroes in all_data.items():
-            group_name, subrole = key.split("_", 1)
             for h in heroes:
                 writer.writerow([
-                    today,
-                    group_name,
-                    subrole,
+                    timestamp,
+                    key,
+                    h["서브롤"],
                     h["영웅"],
                     h["승률"],
                     h["픽률"],
@@ -127,16 +136,16 @@ def save_csv(all_data, today):
     print(f"  → CSV 저장 완료: {filepath}")
     return filepath
 
-def git_push(today):
+def git_push(timestamp):
     subprocess.run(["git", "config", "user.email", "action@github.com"])
     subprocess.run(["git", "config", "user.name", "GitHub Action"])
     subprocess.run(["git", "add", "data/"])
-    subprocess.run(["git", "commit", "-m", f"데이터 업데이트: {today}"])
+    subprocess.run(["git", "commit", "-m", f"데이터 업데이트: {timestamp}"])
     subprocess.run(["git", "push"])
     print("  → GitHub 업로드 완료!")
 
 def main():
-    today = datetime.now().strftime("%Y-%m-%d_%H")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H")
     all_data = {}
 
     with sync_playwright() as p:
@@ -144,52 +153,31 @@ def main():
         page = browser.new_page()
 
         for group_name, tiers in TIER_GROUPS.items():
-            combined = []
+            # 각 그룹의 대표 티어만 수집 (첫번째 티어)
+            tier = tiers[0]
+            print(f"수집 중: {group_name} - {tier}")
+            data = scrape_data(page, tier)
+            print(f"  → 수집된 영웅 수: {len(data)}")
 
-            for tier in tiers:
-                print(f"수집 중: {group_name} - {tier}")
-                data = scrape_data(page, tier)
-                combined.extend(data)
-                time.sleep(2)
+            # 서브롤별로 점수 계산
+            subroles = {}
+            for h in data:
+                sr = h["서브롤"]
+                if sr not in subroles:
+                    subroles[sr] = []
+                subroles[sr].append(h)
 
-            # 중복 영웅 평균 처리
-            hero_dict = {}
-            for h in combined:
-                if h["영웅"] not in hero_dict:
-                    hero_dict[h["영웅"]] = []
-                hero_dict[h["영웅"]].append(h)
-
-            averaged = []
-            for name, entries in hero_dict.items():
-                avg_win = sum(e["승률"] for e in entries) / len(entries)
-                avg_pick = sum(e["픽률"] for e in entries) / len(entries)
-                averaged.append({
-                    "영웅": name,
-                    "승률": round(avg_win, 2),
-                    "픽률": round(avg_pick, 2)
-                })
-
-            # 서브롤별로 분리
-            subrole_dict = {}
-            for h in averaged:
-                subrole = HERO_TO_SUBROLE.get(h["영웅"])
-                if subrole:
-                    if subrole not in subrole_dict:
-                        subrole_dict[subrole] = []
-                    subrole_dict[subrole].append(h)
-                else:
-                    print(f"  → 서브롤 없음: {h['영웅']}")
-
-            # 서브롤별 점수 계산
-            for subrole, heroes in subrole_dict.items():
+            for sr, heroes in subroles.items():
                 scored = calculate_scores(heroes)
-                all_data[f"{group_name}_{subrole}"] = scored
-                print(f"  → {group_name} {subrole} {len(scored)}명 완료")
+                key = f"{group_name}_{sr}"
+                all_data[key] = scored
+
+            time.sleep(2)
 
         browser.close()
 
-    save_csv(all_data, today)
-    git_push(today)
+    save_csv(all_data, timestamp)
+    git_push(timestamp)
     print("완료!")
 
 if __name__ == "__main__":
