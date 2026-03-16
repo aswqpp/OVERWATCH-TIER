@@ -2,7 +2,7 @@ name: 오버워치 티어 데이터 수집
 
 on:
   schedule:
-    - cron: '0 15 * * *'
+    - cron: '0 15,3 * * *'
   workflow_dispatch:
 
 permissions:
