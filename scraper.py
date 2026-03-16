@@ -237,7 +237,7 @@ def main():
             extra = all_collected - all_defined
 
             print(f"\n=== 진단 결과 ===")
-                print(f"정의된 영웅 수: {len(all_defined)}명")
+            print(f"정의된 영웅 수: {len(all_defined)}명")
             print(f"수집된 영웅 수: {len(all_collected)}명")
             if missing:
                 print(f"누락된 영웅: {sorted(missing)}")
