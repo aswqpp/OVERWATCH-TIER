@@ -11,42 +11,70 @@ TIER_GROUPS = {
     "고티어": "Master"
 }
 
-ROLES = {
-    "Tank": "탱커",
-    "Damage": "딜러",
-    "Support": "힐러"
+# (메인역할, 서브롤)
+HERO_ROLES = {
+    # 탱커 - 개시자
+    "D.Va": ("탱커", "개시자"),
+    "레킹볼": ("탱커", "개시자"),
+    "윈스턴": ("탱커", "개시자"),
+    "둠피스트": ("탱커", "개시자"),
+    # 탱커 - 투사
+    "마우가": ("탱커", "투사"),
+    "오리사": ("탱커", "투사"),
+    "로드호그": ("탱커", "투사"),
+    "자리야": ("탱커", "투사"),
+    # 탱커 - 강건한 자
+    "라마트라": ("탱커", "강건한 자"),
+    "라인하르트": ("탱커", "강건한 자"),
+    "도미나": ("탱커", "강건한 자"),
+    "해저드": ("탱커", "강건한 자"),
+    "정커퀸": ("탱커", "강건한 자"),
+    "시그마": ("탱커", "강건한 자"),
+    # 딜러 - 전문가
+    "바스티온": ("딜러", "전문가"),
+    "엠레": ("딜러", "전문가"),
+    "정크랫": ("딜러", "전문가"),
+    "메이": ("딜러", "전문가"),
+    "솔저: 76": ("딜러", "전문가"),
+    # 딜러 - 수색가
+    "에코": ("딜러", "수색가"),
+    "프레야": ("딜러", "수색가"),
+    "파라": ("딜러", "수색가"),
+    "솜브라": ("딜러", "수색가"),
+    # 딜러 - 측면 공격가
+    "겐지": ("딜러", "측면 공격가"),
+    "안란": ("딜러", "측면 공격가"),
+    "리퍼": ("딜러", "측면 공격가"),
+    "트레이서": ("딜러", "측면 공격가"),
+    "벤데타": ("딜러", "측면 공격가"),
+    "벤처": ("딜러", "측면 공격가"),
+    # 딜러 - 명사수
+    "애쉬": ("딜러", "명사수"),
+    "캐서디": ("딜러", "명사수"),
+    "한조": ("딜러", "명사수"),
+    "소전": ("딜러", "명사수"),
+    "위도우메이커": ("딜러", "명사수"),
+    # 힐러 - 전술가
+    "아나": ("힐러", "전술가"),
+    "바티스트": ("힐러", "전술가"),
+    "제트팩 캣": ("힐러", "전술가"),
+    "루시우": ("힐러", "전술가"),
+    "젠야타": ("힐러", "전술가"),
+    # 힐러 - 의무관
+    "키리코": ("힐러", "의무관"),
+    "라이프위버": ("힐러", "의무관"),
+    "메르시": ("힐러", "의무관"),
+    "모이라": ("힐러", "의무관"),
+    # 힐러 - 생존왕
+    "브리기테": ("힐러", "생존왕"),
+    "일리아리": ("힐러", "생존왕"),
+    "주노": ("힐러", "생존왕"),
+    "미즈키": ("힐러", "생존왕"),
+    "우양": ("힐러", "생존왕"),
 }
 
-HERO_SUBROLES = {
-    # 개시자
-    "D.Va": "개시자", "레킹볼": "개시자", "윈스턴": "개시자", "둠피스트": "개시자",
-    # 투사
-    "마우가": "투사", "오리사": "투사", "로드호그": "투사", "자리야": "투사",
-    # 강건한 자
-    "라마트라": "강건한 자", "라인하르트": "강건한 자", "도미나": "강건한 자",
-    "해저드": "강건한 자", "정커퀸": "강건한 자", "시그마": "강건한 자",
-    # 전문가
-    "바스티온": "전문가", "엠레": "전문가", "정크랫": "전문가",
-    "메이": "전문가", "솔저: 76": "전문가",
-    # 수색가
-    "에코": "수색가", "프레야": "수색가", "파라": "수색가", "솜브라": "수색가",
-    # 측면 공격가
-    "겐지": "측면 공격가", "안란": "측면 공격가", "리퍼": "측면 공격가",
-    "트레이서": "측면 공격가", "벤데타": "측면 공격가", "벤처": "측면 공격가",
-    # 명사수
-    "애쉬": "명사수", "캐서디": "명사수", "한조": "명사수",
-    "소전": "명사수", "위도우메이커": "명사수",
-    # 전술가
-    "아나": "전술가", "바티스트": "전술가", "제트팩 캣": "전술가",
-    "루시우": "전술가", "젠야타": "전술가",
-    # 의무관
-    "키리코": "의무관", "라이프위버": "의무관", "메르시": "의무관", "모이라": "의무관",
-    # 생존왕
-    "브리기테": "생존왕", "일리아리": "생존왕", "주노": "생존왕",
-    "미즈키": "생존왕", "우양": "생존왕",
-}
-def scrape_data(page, tier, role):
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
+def scrape_data(page, tier):
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
     page.goto(url)
     page.wait_for_timeout(5000)
 
@@ -70,11 +98,18 @@ def scrape_data(page, tier, role):
                         pickrate = float(next2.replace("%", "").strip())
 
                         if name and 0 < pickrate < 100 and 0 < winrate < 100:
+                            if name in HERO_ROLES:
+                                main_role, subrole = HERO_ROLES[name]
+                            else:
+                                main_role, subrole = "미분류", "미분류"
+                                print(f"  → 미분류 영웅 발견: {name}")
+
                             data.append({
                                 "영웅": name,
                                 "승률": winrate,
                                 "픽률": pickrate,
-                                "서브롤": HERO_SUBROLES.get(name, "미분류")
+                                "메인역할": main_role,
+                                "서브롤": subrole
                             })
                             i += 3
                             continue
@@ -85,16 +120,14 @@ def scrape_data(page, tier, role):
     except Exception as e:
         print(f"  → 오류: {e}")
 
-    # 중복 제거 (영웅 이름 기준)
+    # 중복 제거
     seen = {}
     for h in data:
-        name = h["영웅"]
-        if name not in seen:
-            seen[name] = h
-
+        if h["영웅"] not in seen:
+            seen[h["영웅"]] = h
     data = list(seen.values())
-    print(f"  → 중복 제거 후: {len(data)}명")
 
+    print(f"  → 수집된 영웅 수: {len(data)}명")
     return data
 
 def calculate_scores(heroes):
@@ -125,7 +158,7 @@ def calculate_scores(heroes):
             hero["티어"] = "D"
 
     return heroes
-    
+
 def save_csv(all_data, timestamp):
     os.makedirs("data", exist_ok=True)
     filepath = f"data/{timestamp}.csv"
@@ -135,12 +168,12 @@ def save_csv(all_data, timestamp):
         writer.writerow(["날짜", "랭크그룹", "메인역할", "서브롤", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
 
         for key, heroes in all_data.items():
-            group_name, role_kr = key.split("_")
+            group_name, role = key.split("_", 1)
             for h in heroes:
                 writer.writerow([
                     timestamp,
                     group_name,
-                    role_kr,
+                    role,
                     h["서브롤"],
                     h["영웅"],
                     h["승률"],
@@ -161,7 +194,7 @@ def git_push(timestamp):
     print("  → GitHub 업로드 완료!")
 
 def main():
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
     all_data = {}
 
     with sync_playwright() as p:
@@ -169,20 +202,32 @@ def main():
         page = browser.new_page()
 
         for group_name, tier in TIER_GROUPS.items():
-            for role_en, role_kr in ROLES.items():
-                print(f"수집 중: {group_name} - {role_kr}")
-                data = scrape_data(page, tier, role_en)
-                print(f"  → 수집된 영웅 수: {len(data)}")
+            print(f"\n수집 중: {group_name} ({tier})")
+            data = scrape_data(page, tier)
 
-                scored = calculate_scores(data)
-                all_data[f"{group_name}_{role_kr}"] = scored
-                time.sleep(2)
+            # 메인역할별로 분리
+            role_data = {"탱커": [], "딜러": [], "힐러": []}
+            for h in data:
+                role = h["메인역할"]
+                if role in role_data:
+                    role_data[role].append(h)
+
+            # 역할별 영웅 수 출력
+            for role, heroes in role_data.items():
+                print(f"  → {role}: {len(heroes)}명")
+
+            # 역할별 점수 계산
+            for role, heroes in role_data.items():
+                scored = calculate_scores(heroes)
+                all_data[f"{group_name}_{role}"] = scored
+
+            time.sleep(2)
 
         browser.close()
 
     save_csv(all_data, timestamp)
     git_push(timestamp)
-    print("완료!")
+    print("\n완료!")
 
 if __name__ == "__main__":
     main()
