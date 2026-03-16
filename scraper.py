@@ -225,7 +225,23 @@ def main():
                 all_data[f"{group_name}_{role}"] = scored
 
             time.sleep(2)
+# 진단: 어떤 영웅이 빠졌는지 확인
+all_collected = set()
+for heroes in all_data.values():
+    for h in heroes:
+        all_collected.add(h["영웅"])
 
+all_defined = set(HERO_ROLES.keys())
+missing = all_defined - all_collected
+extra = all_collected - all_defined
+
+print(f"\n=== 진단 결과 ===")
+print(f"정의된 영웅 수: {len(all_defined)}명")
+print(f"수집된 영웅 수: {len(all_collected)}명")
+if missing:
+    print(f"누락된 영웅: {sorted(missing)}")
+if extra:
+    print(f"미분류 영웅: {sorted(extra)}")
         browser.close()
 
     save_csv(all_data, timestamp)
