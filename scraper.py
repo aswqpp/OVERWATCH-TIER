@@ -6,9 +6,15 @@ from datetime import datetime
 from playwright.sync_api import sync_playwright
 
 TIER_GROUPS = {
-    "저티어": ["Bronze", "Silver", "Gold"],
-    "중티어": ["Platinum", "Diamond"],
-    "고티어": ["Master", "GrandmasterAndChampion"]
+    "저티어": "Bronze",
+    "중티어": "Platinum",
+    "고티어": "Master"
+}
+
+ROLES = {
+    "Tank": "탱커",
+    "Damage": "딜러",
+    "Support": "힐러"
 }
 
 HERO_SUBROLES = {
@@ -40,8 +46,8 @@ HERO_SUBROLES = {
     "미즈키": "생존왕", "우양": "생존왕",
 }
 
-def scrape_data(page, tier):
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
+def scrape_data(page, tier, role):
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
     page.goto(url)
     page.wait_for_timeout(5000)
 
@@ -65,12 +71,11 @@ def scrape_data(page, tier):
                         pickrate = float(next2.replace("%", "").strip())
 
                         if name and 0 < pickrate < 100 and 0 < winrate < 100:
-                            subrole = HERO_SUBROLES.get(name, "미분류")
                             data.append({
                                 "영웅": name,
                                 "승률": winrate,
                                 "픽률": pickrate,
-                                "서브롤": subrole
+                                "서브롤": HERO_SUBROLES.get(name, "미분류")
                             })
                             i += 3
                             continue
@@ -118,13 +123,15 @@ def save_csv(all_data, timestamp):
 
     with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["날짜", "랭크그룹", "서브롤", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
+        writer.writerow(["날짜", "랭크그룹", "메인역할", "서브롤", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
 
         for key, heroes in all_data.items():
+            group_name, role_kr = key.split("_")
             for h in heroes:
                 writer.writerow([
                     timestamp,
-                    key,
+                    group_name,
+                    role_kr,
                     h["서브롤"],
                     h["영웅"],
                     h["승률"],
@@ -152,27 +159,15 @@ def main():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        for group_name, tiers in TIER_GROUPS.items():
-            # 각 그룹의 대표 티어만 수집 (첫번째 티어)
-            tier = tiers[0]
-            print(f"수집 중: {group_name} - {tier}")
-            data = scrape_data(page, tier)
-            print(f"  → 수집된 영웅 수: {len(data)}")
+        for group_name, tier in TIER_GROUPS.items():
+            for role_en, role_kr in ROLES.items():
+                print(f"수집 중: {group_name} - {role_kr}")
+                data = scrape_data(page, tier, role_en)
+                print(f"  → 수집된 영웅 수: {len(data)}")
 
-            # 서브롤별로 점수 계산
-            subroles = {}
-            for h in data:
-                sr = h["서브롤"]
-                if sr not in subroles:
-                    subroles[sr] = []
-                subroles[sr].append(h)
-
-            for sr, heroes in subroles.items():
-                scored = calculate_scores(heroes)
-                key = f"{group_name}_{sr}"
-                all_data[key] = scored
-
-            time.sleep(2)
+                scored = calculate_scores(data)
+                all_data[f"{group_name}_{role_kr}"] = scored
+                time.sleep(2)
 
         browser.close()
 
