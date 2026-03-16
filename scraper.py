@@ -11,21 +11,30 @@ TIER_GROUPS = {
     "고티어": ["Master", "GrandmasterAndChampion"]
 }
 
-ROLES = ["Tank", "Damage", "Support"]
-ROLE_KR = {"Tank": "탱커", "Damage": "딜러", "Support": "서포터"}
+# 서브롤 매핑
+SUBROLES = {
+    "개시자": ["D.Va", "둠피스트", "레킹볼", "윈스턴", "해저드"],
+    "투사": ["로드호그", "마우가", "오리사", "자리야"],
+    "강건한 자": ["도미나", "라마트라", "라인하르트", "시그마", "정커퀸"],
+    "측면 공격가": ["겐지", "리퍼", "안란", "트레이서", "벤데타", "벤처"],
+    "수색가": ["솜브라", "에코", "파라", "프레야"],
+    "전문가": ["메이", "바스티온", "솔저: 76", "시메트라", "엠레", "정크랫", "토르비욘"],
+    "명사수": ["소전", "애쉬", "위도우메이커", "캐서디", "한조"],
+    "전술가": ["루시우", "바티스트", "아나", "제트팩 캣", "젠야타"],
+    "의무관": ["라이프위버", "메르시", "모이라", "키리코"],
+    "생존왕": ["미즈키", "브리기테", "우양", "일리아리", "주노"]
+}
 
-def scrape_tier_data(page, tier, role):
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
+# 영웅 → 서브롤 역방향 매핑
+HERO_TO_SUBROLE = {}
+for subrole, heroes in SUBROLES.items():
+    for hero in heroes:
+        HERO_TO_SUBROLE[hero] = subrole
+
+def scrape_data(page, tier):
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
     page.goto(url)
     page.wait_for_timeout(5000)
-
-    try:
-        # 티어 셀렉터 정확하게 지정
-        page.select_option("select[data-label='tier'], #filter-tier-select", tier)
-        page.wait_for_timeout(3000)
-        print(f"  → 티어 선택 성공: {tier}")
-    except Exception as e:
-        print(f"  → 티어 선택 오류: {e}")
 
     data = []
 
@@ -61,7 +70,9 @@ def scrape_tier_data(page, tier, role):
     except Exception as e:
         print(f"  → 오류: {e}")
 
+    print(f"  → 수집된 영웅 수: {len(data)}")
     return data
+
 def calculate_scores(heroes):
     if not heroes:
         return []
@@ -97,15 +108,15 @@ def save_csv(all_data, today):
 
     with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["날짜", "그룹", "역할", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
+        writer.writerow(["날짜", "랭크그룹", "서브롤", "영웅", "승률(%)", "픽률(%)", "점수", "티어"])
 
         for key, heroes in all_data.items():
-            group_name, role = key.rsplit("_", 1)
+            group_name, subrole = key.split("_", 1)
             for h in heroes:
                 writer.writerow([
                     today,
                     group_name,
-                    role,
+                    subrole,
                     h["영웅"],
                     h["승률"],
                     h["픽률"],
@@ -133,34 +144,47 @@ def main():
         page = browser.new_page()
 
         for group_name, tiers in TIER_GROUPS.items():
-            for role in ROLES:
-                combined = []
+            combined = []
 
-                for tier in tiers:
-                    print(f"수집 중: {group_name} - {ROLE_KR[role]} - {tier}")
-                    data = scrape_tier_data(page, tier, role)
-                    print(f"  → 수집된 영웅 수: {len(data)}")
-                    combined.extend(data)
-                    time.sleep(2)
+            for tier in tiers:
+                print(f"수집 중: {group_name} - {tier}")
+                data = scrape_data(page, tier)
+                combined.extend(data)
+                time.sleep(2)
 
-                hero_dict = {}
-                for h in combined:
-                    if h["영웅"] not in hero_dict:
-                        hero_dict[h["영웅"]] = []
-                    hero_dict[h["영웅"]].append(h)
+            # 중복 영웅 평균 처리
+            hero_dict = {}
+            for h in combined:
+                if h["영웅"] not in hero_dict:
+                    hero_dict[h["영웅"]] = []
+                hero_dict[h["영웅"]].append(h)
 
-                averaged = []
-                for name, entries in hero_dict.items():
-                    avg_win = sum(e["승률"] for e in entries) / len(entries)
-                    avg_pick = sum(e["픽률"] for e in entries) / len(entries)
-                    averaged.append({
-                        "영웅": name,
-                        "승률": round(avg_win, 2),
-                        "픽률": round(avg_pick, 2)
-                    })
+            averaged = []
+            for name, entries in hero_dict.items():
+                avg_win = sum(e["승률"] for e in entries) / len(entries)
+                avg_pick = sum(e["픽률"] for e in entries) / len(entries)
+                averaged.append({
+                    "영웅": name,
+                    "승률": round(avg_win, 2),
+                    "픽률": round(avg_pick, 2)
+                })
 
-                scored = calculate_scores(averaged)
-                all_data[f"{group_name}_{ROLE_KR[role]}"] = scored
+            # 서브롤별로 분리
+            subrole_dict = {}
+            for h in averaged:
+                subrole = HERO_TO_SUBROLE.get(h["영웅"])
+                if subrole:
+                    if subrole not in subrole_dict:
+                        subrole_dict[subrole] = []
+                    subrole_dict[subrole].append(h)
+                else:
+                    print(f"  → 서브롤 없음: {h['영웅']}")
+
+            # 서브롤별 점수 계산
+            for subrole, heroes in subrole_dict.items():
+                scored = calculate_scores(heroes)
+                all_data[f"{group_name}_{subrole}"] = scored
+                print(f"  → {group_name} {subrole} {len(scored)}명 완료")
 
         browser.close()
 
