@@ -74,62 +74,65 @@ HERO_ROLES = {
 }
 
 def scrape_data(page, tier):
-    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
-    page.goto(url)
-    page.wait_for_timeout(5000)
+    all_data = []
 
-    data = []
+    for role in ["Tank", "Damage", "Support"]:
+        url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
+        page.goto(url)
+        page.wait_for_timeout(5000)
 
-    try:
-        body_text = page.inner_text("body")
-        lines = body_text.split("\n")
-        lines = [l.strip() for l in lines if l.strip()]
+        try:
+            body_text = page.inner_text("body")
+            lines = body_text.split("\n")
+            lines = [l.strip() for l in lines if l.strip()]
 
-        i = 0
-        while i < len(lines):
-            if i + 2 < len(lines):
-                next1 = lines[i + 1]
-                next2 = lines[i + 2]
+            i = 0
+            while i < len(lines):
+                if i + 2 < len(lines):
+                    next1 = lines[i + 1]
+                    next2 = lines[i + 2]
 
-                if "%" in next1 and "%" in next2:
-                    try:
-                        name = lines[i]
-                        winrate = float(next1.replace("%", "").strip())
-                        pickrate = float(next2.replace("%", "").strip())
+                    if "%" in next1 and "%" in next2:
+                        try:
+                            name = lines[i]
+                            winrate = float(next1.replace("%", "").strip())
+                            pickrate = float(next2.replace("%", "").strip())
 
-                        if name and 0 < pickrate < 100 and 0 < winrate < 100:
-                            if name in HERO_ROLES:
-                                main_role, subrole = HERO_ROLES[name]
-                            else:
-                                main_role, subrole = "미분류", "미분류"
-                                print(f"  → 미분류 영웅 발견: {name}")
+                            if name and 0 < pickrate < 100 and 0 < winrate < 100:
+                                if name in HERO_ROLES:
+                                    main_role, subrole = HERO_ROLES[name]
+                                else:
+                                    main_role, subrole = "미분류", "미분류"
+                                    print(f"  → 미분류 영웅 발견: {name}")
 
-                            data.append({
-                                "영웅": name,
-                                "승률": winrate,
-                                "픽률": pickrate,
-                                "메인역할": main_role,
-                                "서브롤": subrole
-                            })
-                            i += 3
-                            continue
-                    except:
-                        pass
-            i += 1
+                                all_data.append({
+                                    "영웅": name,
+                                    "승률": winrate,
+                                    "픽률": pickrate,
+                                    "메인역할": main_role,
+                                    "서브롤": subrole
+                                })
+                                i += 3
+                                continue
+                        except:
+                            pass
+                i += 1
 
-    except Exception as e:
-        print(f"  → 오류: {e}")
+        except Exception as e:
+            print(f"  → 오류: {e}")
+
+        time.sleep(2)
 
     # 중복 제거
     seen = {}
-    for h in data:
+    for h in all_data:
         if h["영웅"] not in seen:
             seen[h["영웅"]] = h
-    data = list(seen.values())
+    all_data = list(seen.values())
 
-    print(f"  → 수집된 영웅 수: {len(data)}명")
-    return data
-
+    print(f"  → 총 수집된 영웅 수: {len(all_data)}명")
+    return all_data
+    
 def calculate_scores(heroes):
     if not heroes:
         return []
