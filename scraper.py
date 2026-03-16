@@ -76,7 +76,18 @@ HERO_ROLES = {
 def scrape_data(page, tier):
     url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
     page.goto(url)
-    page.wait_for_timeout(6000)
+    page.wait_for_timeout(5000)
+
+    # 스크롤해서 모든 영웅 로드
+    prev_count = 0
+    for _ in range(20):
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(1000)
+        current_text = page.inner_text("body")
+        current_count = current_text.count("%")
+        if current_count == prev_count:
+            break
+        prev_count = current_count
 
     data = []
 
@@ -85,12 +96,7 @@ def scrape_data(page, tier):
         lines = body_text.split("\n")
         lines = [l.strip() for l in lines if l.strip()]
 
-        # 원본 텍스트 확인용
-        print("=== 원본 라인 출력 ===")
-        for idx, line in enumerate(lines):
-            if "%" in line or line in HERO_ROLES:
-                print(f"  [{idx}] {line}")
-        print("=== 출력 끝 ===")
+        print(f"  → 전체 라인 수: {len(lines)}")
 
         i = 0
         while i < len(lines):
