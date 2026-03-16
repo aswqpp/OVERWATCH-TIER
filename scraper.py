@@ -125,7 +125,7 @@ def git_push(today):
     print("  → GitHub 업로드 완료!")
 
 def main():
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now().strftime("%Y-%m-%d_%H")
     all_data = {}
 
     with sync_playwright() as p:
