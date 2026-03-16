@@ -82,9 +82,9 @@ def scrape_data(page, tier):
 
     # 스크롤하면서 매번 수집
     scroll_position = 0
-    scroll_step = 300
-    max_scrolls = 30
-    no_new_count = 0
+    scroll_step = 1000
+    max_scrolls = 50
+    no_new_count = 3
 
     for _ in range(max_scrolls):
         try:
