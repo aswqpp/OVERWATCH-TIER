@@ -11,10 +11,9 @@ TIER_GROUPS = {
     "고티어": "Master"
 }
 
-# (메인역할, 서브롤)
 HERO_ROLES = {
     # 탱커 - 개시자
-    "D.Va": ("탱커", "개시자"),
+    "D.VA": ("탱커", "개시자"),
     "레킹볼": ("탱커", "개시자"),
     "윈스턴": ("탱커", "개시자"),
     "둠피스트": ("탱커", "개시자"),
@@ -36,6 +35,7 @@ HERO_ROLES = {
     "정크랫": ("딜러", "전문가"),
     "메이": ("딜러", "전문가"),
     "솔저: 76": ("딜러", "전문가"),
+    "시메트라": ("딜러", "전문가"),
     # 딜러 - 수색가
     "에코": ("딜러", "수색가"),
     "프레야": ("딜러", "수색가"),
@@ -74,65 +74,70 @@ HERO_ROLES = {
 }
 
 def scrape_data(page, tier):
-    all_data = []
+    url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
+    page.goto(url)
+    page.wait_for_timeout(6000)
 
-    for role in ["Tank", "Damage", "Support"]:
-        url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role={role}&rq=2&tier={tier}"
-        page.goto(url)
-        page.wait_for_timeout(5000)
+    data = []
 
-        try:
-            body_text = page.inner_text("body")
-            lines = body_text.split("\n")
-            lines = [l.strip() for l in lines if l.strip()]
+    try:
+        body_text = page.inner_text("body")
+        lines = body_text.split("\n")
+        lines = [l.strip() for l in lines if l.strip()]
 
-            i = 0
-            while i < len(lines):
-                if i + 2 < len(lines):
-                    next1 = lines[i + 1]
-                    next2 = lines[i + 2]
+        i = 0
+        while i < len(lines):
+            if i + 2 < len(lines):
+                next1 = lines[i + 1]
+                next2 = lines[i + 2]
 
-                    if "%" in next1 and "%" in next2:
-                        try:
-                            name = lines[i]
-                            winrate = float(next1.replace("%", "").strip())
-                            pickrate = float(next2.replace("%", "").strip())
+                if "%" in next1 and "%" in next2:
+                    try:
+                        name = lines[i]
+                        winrate = float(next1.replace("%", "").strip())
+                        pickrate = float(next2.replace("%", "").strip())
 
-                            if name and 0 < pickrate < 100 and 0 < winrate < 100:
-                                if name in HERO_ROLES:
-                                    main_role, subrole = HERO_ROLES[name]
-                                else:
-                                    main_role, subrole = "미분류", "미분류"
-                                    print(f"  → 미분류 영웅 발견: {name}")
+                        if name and 0 < pickrate < 100 and 0 < winrate < 100:
+                            if name in HERO_ROLES:
+                                main_role, subrole = HERO_ROLES[name]
+                            else:
+                                main_role, subrole = "미분류", "미분류"
+                                print(f"  → 미분류 영웅 발견: {name}")
 
-                                all_data.append({
-                                    "영웅": name,
-                                    "승률": winrate,
-                                    "픽률": pickrate,
-                                    "메인역할": main_role,
-                                    "서브롤": subrole
-                                })
-                                i += 3
-                                continue
-                        except:
-                            pass
-                i += 1
+                            data.append({
+                                "영웅": name,
+                                "승률": winrate,
+                                "픽률": pickrate,
+                                "메인역할": main_role,
+                                "서브롤": subrole
+                            })
+                            i += 3
+                            continue
+                    except:
+                        pass
+            i += 1
 
-        except Exception as e:
-            print(f"  → 오류: {e}")
-
-        time.sleep(2)
+    except Exception as e:
+        print(f"  → 오류: {e}")
 
     # 중복 제거
     seen = {}
-    for h in all_data:
+    for h in data:
         if h["영웅"] not in seen:
             seen[h["영웅"]] = h
-    all_data = list(seen.values())
+    data = list(seen.values())
 
-    print(f"  → 총 수집된 영웅 수: {len(all_data)}명")
-    return all_data
-    
+    print(f"  → 총 수집된 영웅 수: {len(data)}명")
+
+    # 진단
+    all_defined = set(HERO_ROLES.keys())
+    collected = set(h["영웅"] for h in data)
+    missing = all_defined - collected
+    if missing:
+        print(f"  → 누락된 영웅: {sorted(missing)}")
+
+    return data
+
 def calculate_scores(heroes):
     if not heroes:
         return []
@@ -225,24 +230,7 @@ def main():
                 all_data[f"{group_name}_{role}"] = scored
 
             time.sleep(2)
-            
-            # 진단: 어떤 영웅이 빠졌는지 확인
-            all_collected = set()
-            for heroes in all_data.values():
-                for h in heroes:
-                    all_collected.add(h["영웅"])
 
-            all_defined = set(HERO_ROLES.keys())
-            missing = all_defined - all_collected
-            extra = all_collected - all_defined
-
-            print(f"\n=== 진단 결과 ===")
-            print(f"정의된 영웅 수: {len(all_defined)}명")
-            print(f"수집된 영웅 수: {len(all_collected)}명")
-            if missing:
-                print(f"누락된 영웅: {sorted(missing)}")
-            if extra:
-                print(f"미분류 영웅: {sorted(extra)}")
         browser.close()
 
     save_csv(all_data, timestamp)
