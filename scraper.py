@@ -77,14 +77,13 @@ def scrape_data(page, tier):
     url = f"https://overwatch.blizzard.com/ko-kr/rates/?input=PC&map=all-maps&region=Asia&role=All&rq=2&tier={tier}"
     page.goto(url)
     page.wait_for_timeout(6000)
-
-    # 페이지 끝까지 스크롤해서 모든 영웅 로드
-    for _ in range(10):
-        page.keyboard.press("End")
-        page.wait_for_timeout(500)
-
+    
     data = []
-
+    print("=== 원본 라인 출력 ===")
+    for idx, line in enumerate(lines):
+        if "%" in line or line in HERO_ROLES:
+            print(f"  [{idx}] {line}")
+    print("=== 출력 끝 ===")
     try:
         body_text = page.inner_text("body")
         lines = body_text.split("\n")
